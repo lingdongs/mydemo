@@ -1,0 +1,24 @@
+server:
+  port: 7411
+
+spring:
+  application:
+    name: gateway-demo
+  config:
+    import:
+      - "nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension}"
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      config:
+        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
+        group: DEFAULT_GROUP
+        file-extension: yml
+      discovery:
+        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
+        group: DEFAULT_GROUP
+auth:
+  jwt:
+    secret: zfvcaKdEh4n6N6+X0PlklixZLxsiVucOcIiAWfwS94kOBtaASB7pxHDTSDFAlJpWTc+fInpGc/jIc6ouCoDK9Q==
+logging:
+  config: classpath:logback-spring.xml

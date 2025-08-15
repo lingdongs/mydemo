@@ -1,0 +1,28 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: mydemo
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+logging:
+  level:
+    root: info
+    com.xxx: debug
+
+jasypt:
+  encryptor:
+    password: zyxfapp
+    algorithm: PBEWithMD5AndDES
+
+s3:
+  endpoint: http://22.144.213.112:9020
+  testenv: true
+  temp:
+    access_key_id: testuser01
+    secret_key: A7nmvxi6rZLHRPU+VRAY0k525usDW1vPeiL611D0
+    qdztbucket: testtempbk01

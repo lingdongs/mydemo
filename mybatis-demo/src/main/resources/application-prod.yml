@@ -1,0 +1,27 @@
+server:
+  port: 8889
+spring:
+  application:
+    name: mybatis-demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+    url: jdbc:mysql://localhost:3306/mydb?useAffectedRows=true&useUnicode=true&characterEncoding=utf-8&useSSL=false&zeroDateTimeBehavior=convertToNull&tinyInt1isBit=false&serverTimezone=GMT%2B8
+#    hikari:
+#      maximum-pool-size: 5
+mybatis:
+  mapper-locations: classpath:mapper/*Mapper.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  type-aliases-package: com.xxx.mybatisdemo.entity
+
+logging:
+  level:
+    root: info
+    com.xxx.mybatisdemo.mapper: debug
+  file:
+    name: ./logs/${spring.application.name}.prod.out
+common:
+  test: testprod
+
