@@ -2,6 +2,7 @@ package com.xxx.filter;
 
 import cn.dev33.satoken.reactor.context.SaReactorSyncHolder;
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.captcha.generator.MathGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -18,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
@@ -36,6 +39,13 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
     private static final String CAPTCHA_CODE_HEADER = "X-Captcha-Code";
     private static final String CAPTCHA_ID_HEADER = "X-Captcha-Id";
     private static final String CAPTCHA_VERIFIED_HEADER = "X-Captcha-Verified";
+    private static final String CAPTCHA_VALIDATION_MONO_KEY = "captchaValidationMono";
+
+    private enum CaptchaValidationResult {
+        SUCCESS,
+        INCORRECT,
+        EXPIRED
+    }
 
 
     @Autowired
@@ -88,7 +98,13 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
     /**
      * 校验验证码
      */
-    private Mono<Void> validateCaptcha(org.springframework.web.server.ServerWebExchange exchange, org.springframework.cloud.gateway.filter.GatewayFilterChain chain, String blockKey, String countKey) {
+    private Mono<Void> validateCaptcha(ServerWebExchange exchange, GatewayFilterChain chain, String blockKey, String countKey) {
+        // 从交换属性中检索缓存的 Mono，以防止对同一请求重复执行整个逻辑链
+        Mono<Void> cachedMono = exchange.getAttribute(CAPTCHA_VALIDATION_MONO_KEY);
+        if (cachedMono != null) {
+            return cachedMono;
+        }
+
         ServerHttpRequest request = exchange.getRequest();
         String userCode = request.getHeaders().getFirst(CAPTCHA_CODE_HEADER);
         String captchaId = request.getHeaders().getFirst(CAPTCHA_ID_HEADER);
@@ -99,21 +115,35 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
 
         String captchaKey = CAPTCHA_CODE_KEY_PREFIX + captchaId;
 
-        return redisTemplate.opsForValue().get(captchaKey)
-                .flatMap(storedCode -> {
-                    if (userCode.equalsIgnoreCase(storedCode)) {
-                        // 校验成功，删除相关键并放行
-                        ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                                .header(CAPTCHA_VERIFIED_HEADER, "true").build();
-                        // 使用 blockKey 替代 ipBlockKey
-                        return redisTemplate.delete(blockKey, countKey, captchaKey)
-                                .then(chain.filter(exchange.mutate().request(modifiedRequest).build()));
-                    } else {
-                        // 答案错误
-                        return sendErrorResponse(exchange, "CAPTCHA_INCORRECT", "Incorrect captcha code.");
+        // 将整个验证和处理逻辑构建成一个 Mono
+        Mono<Void> validationMono = redisTemplate.opsForValue().get(captchaKey)
+                .map(storedCode -> new MathGenerator().verify(storedCode, userCode)
+                        ? CaptchaValidationResult.SUCCESS
+                        : CaptchaValidationResult.INCORRECT)
+                .defaultIfEmpty(CaptchaValidationResult.EXPIRED)
+                .flatMap(result -> {
+                    switch (result) {
+                        case SUCCESS:
+                            // 验证成功：删除 Redis 键并继续过滤器链
+                            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                                    .header(CAPTCHA_VERIFIED_HEADER, "true").build();
+                            return redisTemplate.delete(blockKey, countKey, captchaKey)
+                                    .then(chain.filter(exchange.mutate().request(modifiedRequest).build()));
+                        case INCORRECT:
+                            // 验证失败：验证码不正确
+                            return sendErrorResponse(exchange, "CAPTCHA_INCORRECT", "Incorrect captcha code.");
+                        case EXPIRED:
+                        default:
+                            // 验证失败：验证码过期或不存在
+                            return sendErrorResponse(exchange, "CAPTCHA_EXPIRED", "Captcha has expired, please refresh.");
                     }
-                })
-                .switchIfEmpty(sendErrorResponse(exchange, "CAPTCHA_EXPIRED", "Captcha has expired, please refresh."));
+                });
+
+        // 缓存最终的 Mono<Void> 并将其存储在交换属性中，以供同一请求中的后续调用使用
+        Mono<Void> finalResult = validationMono.cache();
+        exchange.getAttributes().put(CAPTCHA_VALIDATION_MONO_KEY, finalResult);
+
+        return finalResult;
     }
 
     /**
@@ -142,7 +172,7 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
                 });
     }
 
-    private Mono<Void> sendErrorResponse(org.springframework.web.server.ServerWebExchange exchange, String errorCode, String message) {
+    private Mono<Void> sendErrorResponse(ServerWebExchange exchange, String errorCode, String message) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
@@ -165,27 +195,27 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
     private String getIpAddress(ServerHttpRequest request) {
         HttpHeaders headers = request.getHeaders();
         String ip = headers.getFirst("X-Forwarded-For");
-        if (ip != null && ip.length() > 0 && !"unknown".equalsIgnoreCase(ip)) {
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
             if (ip.contains(",")) {
                 ip = ip.split(",")[0];
             }
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = headers.getFirst("Proxy-Client-IP");
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = headers.getFirst("WL-Proxy-Client-IP");
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = headers.getFirst("HTTP_CLIENT_IP");
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = headers.getFirst("HTTP_X_FORWARDED_FOR");
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = headers.getFirst("X-Real-IP");
         }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             InetSocketAddress remoteAddress = request.getRemoteAddress();
             if (remoteAddress != null) {
                 ip = remoteAddress.getAddress().getHostAddress();

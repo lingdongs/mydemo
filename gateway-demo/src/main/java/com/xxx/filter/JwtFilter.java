@@ -27,21 +27,22 @@ public class JwtFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+
         Map<String, Object> map = new HashMap<>();
         map.put("sub", "auth");
         map.put("now", System.currentTimeMillis());
         map.put("exp", System.currentTimeMillis() + 60000);
         String jwt = JWTUtil.createToken(map, jwtSecret.getBytes(StandardCharsets.UTF_8));
-        log.info("jwt是：{}",jwt);
+        log.info("jwt是：{}", jwt);
         ServerHttpRequest newRequest = exchange.getRequest().mutate()
                 .header("Authorization", jwt)
                 .build();
         ServerWebExchange newExchange = exchange.mutate().request(newRequest).build();
-        return chain.filter(newExchange);
+        return chain.filter(exchange);
     }
 
     @Override
     public int getOrder() {
-        return -1;
+        return 1000;
     }
 }
