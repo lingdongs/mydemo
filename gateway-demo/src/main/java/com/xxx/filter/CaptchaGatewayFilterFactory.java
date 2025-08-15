@@ -149,7 +149,7 @@ public class CaptchaGatewayFilterFactory extends AbstractGatewayFilterFactory<Ca
     /**
      * 检查速率限制
      */
-    private Mono<Void> checkRateLimit(org.springframework.web.server.ServerWebExchange exchange, org.springframework.cloud.gateway.filter.GatewayFilterChain chain, Config config, String blockKey, String countKey, String identifier) {
+    private Mono<Void> checkRateLimit(ServerWebExchange exchange, GatewayFilterChain chain, Config config, String blockKey, String countKey, String identifier) {
         return redisTemplate.opsForValue().increment(countKey)
                 .flatMap(count -> {
                     if (count == 1) {
