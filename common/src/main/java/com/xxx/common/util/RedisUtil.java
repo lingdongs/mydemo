@@ -77,4 +77,17 @@ public class RedisUtil {
         }
         return result;
     }
+
+    /**
+     * 如果不存在则设置
+     *
+     * @param key    键
+     * @param value  值
+     * @param expire 过期时间(s)
+     * @return 是否成功
+     */
+    public boolean setIfAbsent(String key, Object value, long expire) {
+        Boolean result = redisTemplate.opsForValue().setIfAbsent(key, value, expire, TimeUnit.SECONDS);
+        return Boolean.TRUE.equals(result);
+    }
 }

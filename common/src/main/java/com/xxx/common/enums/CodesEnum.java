@@ -11,6 +11,8 @@ public enum CodesEnum {
     PARAM_EX(5001,"入参异常"),
     JSON_EX(5002,"JSON异常"),
     LOGIN_UN(5009, "登录过期"),
+    REPEAT_SUBMIT(5010, "请勿重复提交"),
+    INVALID_TOKEN(5011, "无效的令牌"),
     ;
 
     private final Integer code;
