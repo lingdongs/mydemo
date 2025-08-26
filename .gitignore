@@ -14,7 +14,7 @@ target/
 *.ipr
 *.log
 *.log.gz
-logs/
+.roo/
 
 ### Eclipse ###
 .apt_generated

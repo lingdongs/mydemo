@@ -12,9 +12,4 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RepeatSubmit {
-    /**
-     * 过期时间，单位秒
-     * @return
-     */
-    int expireTime() default 5;
 }
