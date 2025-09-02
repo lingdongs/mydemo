@@ -3,21 +3,21 @@ server:
 spring:
   application:
     name: general-demo
-  cloud:
-    nacos:
-      server-addr: 127.0.0.1:8848
+#  cloud:
+#    nacos:
+#      server-addr: 127.0.0.1:8848
 #      username:
 #      password:
-      config:
-        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
-        group: DEFAULT_GROUP
-        file-extension: yml
-      discovery:
-        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
-        group: DEFAULT_GROUP
-  config:
-    import:
-      - "nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension}"
+#      config:
+#        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
+#        group: DEFAULT_GROUP
+#        file-extension: yml
+#      discovery:
+#        namespace: 45fcf0e7-81c5-4028-9b91-56ef31ada160
+#        group: DEFAULT_GROUP
+#  config:
+#    import:
+#      - "nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension}"
 #      - "nacos:${spring.application.name}-${spring.profiles.active}.${spring.cloud.nacos.config.file-extension}"
 logging:
   config: classpath:logback-spring.xml

@@ -5,7 +5,6 @@ import com.xxx.common.exception.CommonException;
 import com.xxx.common.vo.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -32,8 +31,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException e, HttpServletRequest request) {
-        log.error("请求路径：{}，参数异常：{}",  request.getRequestURI(), ExceptionUtils.getStackTrace(e));
-        return new Result<>(CodesEnum.PARAM_EX.getCode(),CodesEnum.PARAM_EX.getMessage());
+        log.error("请求路径：{}，参数异常：{}", request.getRequestURI(), ExceptionUtils.getStackTrace(e));
+        return new Result<>(CodesEnum.PARAM_EX.getCode(), CodesEnum.PARAM_EX.getMessage());
     }
 
     /**
@@ -41,8 +40,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public Result<?> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
-        log.error("请求路径：{}，参数异常：{}",  request.getRequestURI(), ExceptionUtils.getStackTrace(e));
-        return new Result<>(CodesEnum.PARAM_EX.getCode(),CodesEnum.PARAM_EX.getMessage());
+        log.error("请求路径：{}，参数异常：{}", request.getRequestURI(), ExceptionUtils.getStackTrace(e));
+        return new Result<>(CodesEnum.PARAM_EX.getCode(), CodesEnum.PARAM_EX.getMessage());
     }
 
     /**
@@ -50,7 +49,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleAllExceptions(Exception e, HttpServletRequest request) {
-        log.error("请求路径：{}，系统异常：{}",  request.getRequestURI(), ExceptionUtils.getStackTrace(e));
+        log.error("请求路径：{}，系统异常：{}", request.getRequestURI(), ExceptionUtils.getStackTrace(e));
         return new Result<>(CodesEnum.SYSTEM_EX.getCode(), CodesEnum.SYSTEM_EX.getMessage());
     }
 }
